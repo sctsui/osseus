@@ -20,7 +20,7 @@ class Header extends React.Component {
     var plugins = JSON.parse(JSON.stringify(store.getState().savedPlugins));
     store.dispatch(addPluginArray([plugins]));
 
-    const project = store.getState().projects
+    const project = store.getState().projects[0]
     console.log(project)
     // Save current project
     fetch('http://0.0.0.0:9191/demo/saveMultiple', {
@@ -31,9 +31,9 @@ class Header extends React.Component {
       },
       body: JSON.stringify(project)
     })
-      // Log response
-      .then(res => console.log("Success: ", JSON.stringify(res)))
-      .catch(err => console.log("Error: ", err))
+    // Log response
+        .then(res => console.log("Success: ", JSON.stringify(res)))
+        .catch(err => console.log("Error: ", err))
 
     // Popup to signal saved project
     swal({
@@ -87,3 +87,5 @@ class Header extends React.Component {
   }
 }
 export default Header;
+
+
