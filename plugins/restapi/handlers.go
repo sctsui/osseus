@@ -87,6 +87,8 @@ func (p *Plugin) registerHandlersHere() {
 	p.HTTPHandlers.RegisterHTTPHandler("/v1/projects", p.SaveProjectHandler, POST)
 	// load project state for project with name = {id}
 	p.HTTPHandlers.RegisterHTTPHandler("/v1/projects/{id}", p.LoadProjectHandler, GET)
+	//load all projects
+	p.HTTPHandlers.RegisterHTTPHandler("/v1/projects", p.LoadAllProjectsHandler, GET)
 	// delete a project
 	p.HTTPHandlers.RegisterHTTPHandler("/v1/projects/{id}", p.DeleteProjectHandler, DELETE)
 	// save project plugins to generate code
@@ -145,6 +147,18 @@ func (p *Plugin) LoadProjectHandler(formatter *render.Render) http.HandlerFunc {
 		// Send value back to client
 		w.Header().Set("Content-Type", "application/json")
 		projectJSON, _ := json.Marshal(projectInfo)
+
+		p.logError(formatter.JSON(w, http.StatusOK, projectJSON))
+	}
+}
+
+// LoadAllProjectsHandler loads all projects currently stored in etcd
+func (p *Plugin) LoadAllProjectsHandler(formatter *render.Render) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		projectsInfo := p.getAllProjects(projectsPrefix)
+
+		w.Header().Set("Content-Type", "application/json")
+		projectJSON, _ := json.Marshal(projectsInfo)
 
 		p.logError(formatter.JSON(w, http.StatusOK, projectJSON))
 	}
@@ -357,6 +371,49 @@ func (p *Plugin) getProject(prefix string, key string) interface{} {
 	}
 
 	return project
+}
+
+// retrieves all projects stored under the projects prefix in etcd
+func (p *Plugin) getAllProjects(prefix string) interface{} {
+
+	broker := p.KVStore.NewBroker(prefix)
+
+	keys, err := broker.ListKeys(prefix)
+
+	if err != nil {
+		p.Log.Errorf("GetValue failed: %v", err)
+	}
+
+	for {
+		key, val, all := keys.GetNext()
+		if all == true {
+			p.Log.Debug("AAAAAAAAAAA")
+			break
+		}
+
+		p.Log.Infof("Key: %q Val: %v", key, val)
+	}
+
+	format := new(model.Project)
+	resp, err := broker.ListValues("/myproject")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		kv, stop := resp.GetNext()
+		if stop {
+			p.Log.Debug("stop")
+			break
+		}
+		p.Log.Debug("key is, ", kv.GetKey())
+		err = kv.GetValue(format)
+		if err != nil {
+			log.Fatal(err)
+		}
+		p.Log.Debug("value is", format.Plugin[0])
+	}
+
+	return nil
 }
 
 // returns template structure as directory of files
