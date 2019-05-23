@@ -30,7 +30,7 @@ import (
 
 const (
 	genPrefix      = "/vnf-agent/vpp1/config/generator/v1/project/"
-	projectsPrefix = "/projects/v1/plugins/"
+	projectsPrefix = "/vnf-agent/vpp1/config/generator/v1/plugins/"//"/projects/v1/plugins/"
 	templatePrefix = "/vnf-agent/vpp1/config/generator/v1/template/"
 )
 
@@ -377,6 +377,7 @@ func (p *Plugin) getProject(prefix string, key string) interface{} {
 func (p *Plugin) getAllProjects(prefix string) interface{} {
 
 	broker := p.KVStore.NewBroker(prefix)
+	p.Log.Debugf("prefix %s", prefix)
 
 	keys, err := broker.ListKeys(prefix)
 
@@ -384,10 +385,12 @@ func (p *Plugin) getAllProjects(prefix string) interface{} {
 		p.Log.Errorf("GetValue failed: %v", err)
 	}
 
+	p.Log.Debugf("this is teh key: %s, ", keys)
+
 	for {
 		key, val, all := keys.GetNext()
 		if all == true {
-			p.Log.Debug("AAAAAAAAAAA")
+			p.Log.Debug("inside listKeys finished")
 			break
 		}
 
@@ -395,7 +398,7 @@ func (p *Plugin) getAllProjects(prefix string) interface{} {
 	}
 
 	format := new(model.Project)
-	resp, err := broker.ListValues("/myproject")
+	resp, err := broker.ListValues("myproject")
 	if err != nil {
 		log.Fatal(err)
 	}
