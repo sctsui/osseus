@@ -23,6 +23,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/ligato/osseus/plugins/generator/model"
 	"github.com/ligato/osseus/plugins/restapi/restmodel"
 
 	"github.com/unrolled/render"
@@ -94,9 +95,8 @@ func (p *Plugin) registerHandlersHere() {
 	/*** Handlers for managing projects ***/
 	// save project state
 	p.HTTPHandlers.RegisterHTTPHandler("/v1/projects", p.SaveProjectHandler, POST)
-
-	//todo: implement loadAll Handler here
-
+	//load all projects
+	p.HTTPHandlers.RegisterHTTPHandler("/v1/projects", p.LoadAllProjectsHandler, GET)
 	// delete a project
 	p.HTTPHandlers.RegisterHTTPHandler("/v1/projects/{id}", p.DeleteProjectHandler, DELETE)
 
@@ -140,6 +140,18 @@ func (p *Plugin) SaveProjectHandler(formatter *render.Render) http.HandlerFunc {
 		p.genUpdater(reqParam, projectsPrefix, reqParam.ProjectName)
 
 		p.logError(formatter.JSON(w, http.StatusOK, reqParam))
+	}
+}
+
+// LoadAllProjectsHandler loads all projects currently stored by the user
+func (p *Plugin) LoadAllProjectsHandler(formatter *render.Render) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		projectsInfo := p.getAllProjects(projectsPrefix)
+
+		w.Header().Set("Content-Type", "application/json")
+		projectJSON, _ := json.Marshal(projectsInfo)
+
+		p.logError(formatter.JSON(w, http.StatusOK, projectJSON))
 	}
 }
 
@@ -290,6 +302,57 @@ func (p *Plugin) getGeneratedFile(prefix string, key string) interface{} {
 	}
 
 	return zipFile
+}
+
+// retrieves all projects stored under the projects prefix in etcd
+func (p *Plugin) getAllProjects(prefix string) interface{} {
+
+	p.setBroker(prefix)
+	p.Log.Debugf("prefix %s", prefix)
+
+	// This part does not work; no keys are found
+	// How to reproduce:
+	// 1. Save a project with projectName = "myproject"
+	// 2. GET http://0.0.0.0:9191/v1/projects
+	/*
+			keys, err := broker.ListKeys(prefix)
+
+		if err != nil {
+			p.Log.Errorf("ListKeys failed: %v", err)
+		}
+
+		p.Log.Debugf("this is the key: %s, ", keys)
+
+		for {
+			key, val, all := keys.GetNext()
+			if all == true {
+				p.Log.Debug("inside listKeys finished")
+				break
+			}
+
+			p.Log.Debugf("Key: %s Val: %s", key, val)
+		}
+	*/
+	format := new(model.Project)
+	resp, err := p.broker.ListValues("myproject") //replace "myproject" with keys from listkeys
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		kv, stop := resp.GetNext()
+		if stop {
+			p.Log.Debug("stop")
+			break
+		}
+		p.Log.Debug("key is, ", kv.GetKey())
+		err = kv.GetValue(format)
+		if err != nil {
+			log.Fatal(err)
+		}
+		p.Log.Debug("value is", format.Plugin[0]) //todo iterate through Plugin
+	}
+
+	return nil
 }
 
 // returns true if value at key deleted, false otherwise
